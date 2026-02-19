@@ -1,0 +1,104 @@
+name: "general-bluebase-grader"
+description: "General BlueBase Grader"
+author: "DKU-IRDM-Classroom"
+
+inputs:
+  module-path:
+    required: true
+  component-name:
+    required: false
+  time-limit:
+    required: false
+    default: 5
+
+permissions:
+  contents: read
+  actions: read
+  checks: write
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: 환경 준비
+      id: prepare-grader
+      shell: bash
+      run: |
+        : 환경 준비
+        set -euo pipefail
+
+        mkdir -p "$HOME/workdir"
+        chmod 777 "$HOME/workdir"
+
+        pip install -qq --disable-pip-version-check pytest pytest-timeout
+
+        if [ -f "${{ inputs.module-path }}/requirements.txt" ]; then
+          cp "${{ inputs.module-path }}/requirements.txt" ./
+          pip install -r ./requirements.txt
+        fi
+
+    - name: 테스트 수집
+      id: collect-tests
+      shell: bash
+      run: |
+        : 테스트 수집
+        set -euo pipefail
+
+        cp -rf "./${{ inputs.component-name }}" "$HOME/workdir/${{ inputs.component-name }}_student"
+
+        cp -rf "${{ inputs.module-path }}/bluebase" "$HOME/workdir/bluebase"
+        cp -rf "${{ inputs.module-path }}/tests" "$HOME/workdir/tests"
+
+        cd "$HOME/workdir"
+        pytest tests/ --collect-only --quiet | head -n -2 > ./nodeids.txt
+        TOTAL=$(wc -l < ./nodeids.txt)
+
+        echo "TOTAL=$TOTAL" >> "$GITHUB_ENV"
+
+    - name: 채점
+      id: grade
+      shell: bash
+      run: |
+        : 채점
+        set -euo pipefail
+
+        cd "$HOME/workdir"
+
+        PASS=0
+
+        for n in $(seq 1 ${{ env.TOTAL }}); do
+
+          NODEID=$(sed -n "${n}p" ./nodeids.txt | xargs)
+          OUT="./pytest_${n}.log"
+          XML="./report_${n}.xml"
+
+          set +e
+          pytest "$NODEID" \
+            --quiet \
+            --tb=no \
+            --disable-warnings \
+            --timeout=${{ inputs.time-limit }} \
+            --timeout-method=thread \
+            --junitxml="$XML" \
+            >"$OUT" 2>&1
+          RC=$?
+          set -e
+
+          NODENAME="${NODEID##*::}"
+          if [ "$RC" -eq 0 ]; then
+            echo "[Case ${n}] PASS <${NODENAME}>"
+            PASS=$((PASS+1))
+            continue
+          fi
+          if grep -q "Timeout" "$OUT"; then
+            echo "[Case ${n}] Time Limit Exceeded <${NODENAME}>"
+          elif [ -f "$XML" ] && grep -q "Timeout" "$XML"; then
+            echo "[Case ${n}] Time Limit Exceeded <${NODENAME}>"
+          else
+            echo "[Case ${n}] FAIL <${NODENAME}>"
+          fi
+
+        done
+
+        echo "::notice::점수 ${PASS}/${{ env.TOTAL }}"
+        echo "::notice title=Autograding report::{\"totalPoints\":${PASS},\"maxPoints\":${{ env.TOTAL }}}"
