@@ -44,7 +44,7 @@ runs:
         : 테스트 수집
         set -euo pipefail
 
-        cp -rf "./${{ inputs.component-name }}" "$HOME/workdir/${{ inputs.component-name }}_student"
+        cp -rf "./${{ inputs.component-name }}" "$HOME/workdir/${{ inputs.component-name }}"
 
         cp -rf "${{ inputs.module-path }}/bluebase" "$HOME/workdir/bluebase"
         cp -rf "${{ inputs.module-path }}/tests" "$HOME/workdir/tests"
