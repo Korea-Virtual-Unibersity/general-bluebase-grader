@@ -44,10 +44,11 @@ runs:
         : 테스트 수집
         set -euo pipefail
 
-        cp -rf "./${{ inputs.component-name }}" "$HOME/workdir/${{ inputs.component-name }}"
+        cp -rf "${{ inputs.module-path }}/bluebase" "$HOME/workdir/"
+        cp -rf "${{ inputs.module-path }}/tests" "$HOME/workdir/"
 
-        cp -rf "${{ inputs.module-path }}/bluebase" "$HOME/workdir/bluebase"
-        cp -rf "${{ inputs.module-path }}/tests" "$HOME/workdir/tests"
+        rm -rf "$HOME/workdir/bluebase/${{ inputs.component-name }}"
+        cp -rf "./bluebase/${{ inputs.component-name }}" "$HOME/workdir/bluebase/"
 
         cd "$HOME/workdir"
         pytest tests/ --collect-only --quiet | head -n -2 > ./nodeids.txt
