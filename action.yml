@@ -1,6 +1,6 @@
 name: "general-bluebase-grader"
 description: "General BlueBase Grader"
-author: "DKU-IRDM-Classroom"
+author: "Korea-Virtual-Unibersity"
 
 inputs:
   module-path:
